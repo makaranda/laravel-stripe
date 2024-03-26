@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use App\Models\Payments;
 use Illuminate\Support\Facades\Session;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 //use Session;
 use Stripe;
 
@@ -126,6 +128,38 @@ class StripeController extends Controller
 
         Payments::create($paymentData);
 
+        $mail = new PHPMailer(true);
+
+        try{
+            $mail->SMTPDebug = 0;
+            $mail->isSMTP();
+            $mail->SMTPAuth = true;
+            $mail->Host = env('MAIL_HOST');
+            $mail->Username = env('MAIL_USERNAME');
+            $mail->Password = env('MAIL_PASSWORD');
+            $mail->SMTPSecure = env('MAIL_ENCRYPTION');
+            $mail->Port = env('MAIL_PORT');
+
+            $mail->setFrom(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME'));
+            $mail->addAddress($customer_email);
+
+            $mail->isHTML(true);
+   
+            $mail->Subject = $request->subject;
+            $mail->Body    = $request->body;
+   
+            if( !$mail->send() ) {
+                return back()->with("error", "Email not sent.")->withErrors($mail->ErrorInfo);
+            }
+              
+            else {
+                return back()->with("success", "Email has been sent.");
+            }
+            
+        }catch (Exception $e) {
+            return back()->with('error','Message could not be sent.');
+       }
+
         $to_email = "$customer_email";
         $subject = "Payment Completed - from $customer_name";
         $body = "Hello $customer_name, Your payment is Successfull received to us and we will contact you soon";
@@ -135,7 +169,7 @@ class StripeController extends Controller
         if (mail($to_email, $subject, $body, $headers)) {
   
         } 
-        
+
         $message_type = "success";
         $message = "Your payment is Successfull";
 
